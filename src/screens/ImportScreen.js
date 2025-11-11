@@ -1,40 +1,36 @@
 import { Text, View, Button, TextInput, StyleSheet } from "react-native";
 import { useState } from "react";
+import Fish from "../components/Fish";
+import { handleResponse } from "../../api/chat";
 
 export default function ImportScreen() {
-  const [load, setLoad] = useState(""); // string, not null
-  const [response, setResponse] = useState("");
+  const [load, setLoad] = useState(""); //what we send
+  const [response, setResponse] = useState(""); //what GPT sends
+  const [status, setStatus] = useState(""); //feedback status
 
+  //needs to be async because we are relying on server function
+  //upload function, takes a prompt (load) which is the string sent to GPT
   const handleUpload = async () => {
-    setResponse("Generating a response…");
+    //feedback
+    setStatus("Generating a response…");
+    // handleResponse is the returned object from chat.js.
     try {
-      const cargo = await fetch(
-        "https://feature-test-six.vercel.app/api/chat",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: load || "Hello!" }],
-          }),
-        }
-      );
-
-      if (!cargo.ok) {
-        const text = await cargo.text().catch(() => "");
-        throw new Error(`HTTP ${cargo.status} ${text}`);
-      }
-
-      const data = await cargo.json();
-      setResponse(data?.reply?.content ?? "No response from server.");
+      const parsedSchema = await handleResponse(load);
+      //response is what GPT responds with.
+      setResponse(parsedSchema);
+      //feedback
+      setStatus("Complete");
     } catch (e) {
-      console.warn("fetch error:", e);
-      setResponse(`Error: ${e?.message ?? String(e)}`);
+      //catch case in case GPT fails to connect.
+      console.warn("Failed to connect", e);
     }
   };
 
   return (
     <View style={styles.page}>
       <View style={styles.flexCol}>
+        {/* //fish object which takes passed params object (schema) */}
+        <Fish schema={response ?? null} />
         <View style={styles.flexRow}>
           <TextInput
             style={styles.upload}
@@ -42,9 +38,10 @@ export default function ImportScreen() {
             value={load}
             onChangeText={setLoad}
           />
-          <Button title="upload" onPress={handleUpload} />
+          <Button title="Send" onPress={handleUpload} />
         </View>
-        <Text>{response || "no response"}</Text>
+        {/* //status */}
+        <Text>{status || "idle"}</Text>
       </View>
     </View>
   );
